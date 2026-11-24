@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'api_service.dart';
 import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -9,43 +10,82 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // Identifiants de démonstration (tu peux les modifier)
-  static const String identifiantCorrect = 'christian';
-  static const String motDePasseCorrect = '1234';
-
-  final TextEditingController _identifiantController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _motDePasseController = TextEditingController();
 
   bool _masquerMotDePasse = true;
+  bool _chargement = false;
   String _messageErreur = '';
+  String _messageSucces = '';
 
-  void _seConnecter() {
-    final identifiant = _identifiantController.text.trim();
-    final motDePasse = _motDePasseController.text;
-
-    if (identifiant.isEmpty || motDePasse.isEmpty) {
+  bool _champsValides(String email, String motDePasse) {
+    if (email.isEmpty || motDePasse.isEmpty) {
       setState(() {
         _messageErreur = 'Veuillez remplir tous les champs.';
+        _messageSucces = '';
       });
-    } else if (identifiant == identifiantCorrect &&
-        motDePasse == motDePasseCorrect) {
-      setState(() {
-        _messageErreur = '';
-      });
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _seConnecter() async {
+    final email = _emailController.text.trim();
+    final motDePasse = _motDePasseController.text;
+    if (!_champsValides(email, motDePasse)) return;
+
+    setState(() {
+      _chargement = true;
+      _messageErreur = '';
+      _messageSucces = '';
+    });
+
+    try {
+      await ApiService.connecter(email, motDePasse);
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomePage()),
       );
-    } else {
+    } on ApiException catch (e) {
+      if (!mounted) return;
       setState(() {
-        _messageErreur = 'Identifiant ou mot de passe incorrect.';
+        _messageErreur = e.message;
+        _chargement = false;
+      });
+    }
+  }
+
+  Future<void> _creerCompte() async {
+    final email = _emailController.text.trim();
+    final motDePasse = _motDePasseController.text;
+    if (!_champsValides(email, motDePasse)) return;
+
+    setState(() {
+      _chargement = true;
+      _messageErreur = '';
+      _messageSucces = '';
+    });
+
+    try {
+      await ApiService.inscrire(email, motDePasse);
+      if (!mounted) return;
+      setState(() {
+        _messageSucces = 'Compte créé. Vous pouvez vous connecter.';
+        _chargement = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _messageErreur = e.message;
+        _chargement = false;
       });
     }
   }
 
   @override
   void dispose() {
-    _identifiantController.dispose();
+    _emailController.dispose();
     _motDePasseController.dispose();
     super.dispose();
   }
@@ -72,10 +112,11 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 32),
               TextField(
-                controller: _identifiantController,
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  labelText: 'Identifiant',
-                  prefixIcon: Icon(Icons.person),
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email),
                   border: OutlineInputBorder(),
                   filled: true,
                   fillColor: Colors.white,
@@ -110,15 +151,32 @@ class _LoginPageState extends State<LoginPage> {
                   style: const TextStyle(color: Colors.red),
                   textAlign: TextAlign.center,
                 ),
+              if (_messageSucces.isNotEmpty)
+                Text(
+                  _messageSucces,
+                  style: const TextStyle(color: Colors.green),
+                  textAlign: TextAlign.center,
+                ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _seConnecter,
-                  child: const Text('Se connecter',
-                      style: TextStyle(fontSize: 16)),
+                  onPressed: _chargement ? null : _seConnecter,
+                  child: _chargement
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Se connecter',
+                          style: TextStyle(fontSize: 16)),
                 ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _chargement ? null : _creerCompte,
+                child: const Text('Créer un compte'),
               ),
             ],
           ),

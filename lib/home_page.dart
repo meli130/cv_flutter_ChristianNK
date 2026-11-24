@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'api_service.dart';
 import 'login_page.dart';
 import 'cv_page.dart';
 import 'family_page.dart';
@@ -27,6 +28,7 @@ class _HomePageState extends State<HomePage> {
   ];
 
   void _deconnexion() {
+    ApiService.deconnecter();
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginPage()),
